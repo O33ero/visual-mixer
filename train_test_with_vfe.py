@@ -120,85 +120,49 @@ def test(model, rank_module, testloader, best_acc, device, criterion, model_save
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="PyTorch Entromix Training")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--workers",
         default=2,
         type=int,
         metavar="N",
-        help="number of data loading workers (default: 2)",
     )
     parser.add_argument(
         "--epochs",
         default=90,
         type=int,
         metavar="N",
-        help="number of total epochs to run",
     )
     parser.add_argument(
         "--batch-size",
         default=128,
         type=int,
         metavar="N",
-        help="approximate bacth size",
-    )
-    parser.add_argument(
-        "--lr",
-        default=0.1,
-        type=float,
-        help="initial learning rate",
-    )
-    parser.add_argument(
-        "--min-lr",
-        default=0.001,
-        type=float,
-        help="Last learning rate",
     )
     parser.add_argument(
         "--evaluate",
         dest="evaluate",
         action="store_true",
-        help="evaluate model on validation set",
     )
     parser.add_argument(
         "--model-save-dir",
         type=str,
         default="checkpoint",
-        help="path to save model",
     )
     parser.add_argument(
         "--data-root",
         type=str,
         default="./datas",
-        help="Where data is be stored",
-    )
-    parser.add_argument(
-        "--optim",
-        type=str,
-        default="SGD",
-        help="Optimizer to use (Adam, SGD)",
     )
     parser.add_argument(
         "--device",
         type=str,
         default="cpu",
-        help="Device on which to run the code."
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="resnet",
-        help="model to trainning."
     )
     parser.add_argument(
         "--cls",
         type=int,
         default="1000"
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="mnist"
     )
 
     return parser.parse_args()
@@ -207,75 +171,30 @@ def parse_args():
 def setEnv(args):
     cls = args.cls
     device = args.device
-    if args.model == "resnet":
-        model = models.resnet50(pretrained=False, num_classes=cls).to(device)
-    elif args.model == "vgg":
-        model = models.vgg16(pretrained=False, num_classes=cls).to(device)
-    elif args.model == "vit":
-        model = models.vit_b_16(num_classes=cls)
-    elif args.model == "swin":
-        model = models.swin_v2_s(num_classes=cls)
+    model = models.resnet50(pretrained=False, num_classes=cls).to(device)
     model.to(device)
     rank_moudle = AttentionBlock(3, 3).to(device)
-    dataset = args.dataset
     data_root = args.data_root
-    if dataset == 'imagenet1k':
-        # Instantiating validation Dataset
-        val_dataset = torchvision.datasets.ImageFolder(data_root,
-                                                       transform=torchvision.transforms.Compose([
-                                                           transforms.RandomResizedCrop(IMAGE_SIZE_H),
-                                                           torchvision.transforms.ToTensor(),
-                                                           torchvision.transforms.Normalize(
-                                                               mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                                       ]))
-        # Instantiating training dataset
-        train_dataset = torchvision.datasets.ImageFolder(data_root,
-                                                         transform=torchvision.transforms.Compose([
-                                                             torchvision.transforms.ToTensor(),
-                                                             torchvision.transforms.Normalize(
-                                                                 mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                                         ]))
-    elif dataset == 'cifar10':
-        val_dataset = torchvision.datasets.CIFAR10(data_root, train=False, download=True,
-                                                   transform=torchvision.transforms.Compose([
-                                                       transforms.Resize([IMAGE_SIZE_H, IMAGE_SIZE_W]),
-                                                       torchvision.transforms.ToTensor(),
-                                                       torchvision.transforms.Normalize(
-                                                           mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                                   ]))
-        train_dataset = torchvision.datasets.CIFAR10(data_root, train=True, download=True,
-                                                     transform=torchvision.transforms.Compose([
-                                                         transforms.Resize([IMAGE_SIZE_H, IMAGE_SIZE_W]),
-                                                         torchvision.transforms.ToTensor(),
-                                                         torchvision.transforms.Normalize(
-                                                             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                                     ]))
-    elif dataset == 'mnist':
-        val_dataset = torchvision.datasets.MNIST(data_root, train=False, download=True,
+    val_dataset = torchvision.datasets.CIFAR10(data_root, train=False, download=True,
+                                               transform=torchvision.transforms.Compose([
+                                                   transforms.Resize([IMAGE_SIZE_H, IMAGE_SIZE_W]),
+                                                   torchvision.transforms.ToTensor(),
+                                                   torchvision.transforms.Normalize(
+                                                       mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                                               ]))
+    train_dataset = torchvision.datasets.CIFAR10(data_root, train=True, download=True,
                                                  transform=torchvision.transforms.Compose([
-                                                     transforms.Grayscale(num_output_channels=3),
                                                      transforms.Resize([IMAGE_SIZE_H, IMAGE_SIZE_W]),
                                                      torchvision.transforms.ToTensor(),
                                                      torchvision.transforms.Normalize(
                                                          mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                                                  ]))
-        train_dataset = torchvision.datasets.MNIST(data_root, train=True, download=True,
-                                                   transform=torchvision.transforms.Compose([
-                                                       transforms.Grayscale(num_output_channels=3),
-                                                       transforms.Resize([IMAGE_SIZE_H, IMAGE_SIZE_W]),
-                                                       torchvision.transforms.ToTensor(),
-                                                       torchvision.transforms.Normalize(
-                                                           mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                                   ]))
     pg = [p for p in model.parameters() if p.requires_grad]
     for p in rank_moudle.parameters():
         if p.requires_grad:
             pg.append(p)
-    if args.optim == "Adam":
-        optimizer = optim.Adam(pg, lr=args.lr)
-    elif args.optim == "SGD":
-        optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9)
-    schedule = lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.min_lr)
+    optimizer = optim.Adam(pg, lr=0.1)
+    schedule = lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0.001)
 
     train_dataset = Subset(train_dataset, range(1000))
     val_dataset = Subset(val_dataset, range(1000))
